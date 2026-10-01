@@ -40,3 +40,17 @@ Apply database migrations once; confirm trusted authentication dispatch; provisi
 - File cleanup no longer clears unrelated local drafts.
 - CI now runs Python recovery and deletion tests as well as app tests and build checks.
 - Database migration journal includes both maintenance tables.
+
+## Hosted verification on 1 October 2026
+
+Production: https://fieldproof.sidharthmonangi.chatgpt.site
+
+- GitHub sign-in returned to the hosted origin and authenticated workspace; session persisted after reload. Supabase Site URL and callback allowlist were checked in the dashboard.
+- Native deployment reported success; all 12 database tables were present. Server AI and auth credentials were stored as secrets; release archive and source ZIP passed saved-key scans.
+- Live service check: database reachable, storage configured, assistant configured, no pending file cleanup.
+- Three PIB sources downloaded live; BEE retained its explicitly labelled reviewed snapshot.
+- Gemini generated a consent answer with literal handbook citations. Fictional starter cases were stored in the real user's hosted workspace for exploration.
+- 25 hosted integration checks passed using two disposable real Supabase password-authenticated accounts. These exercised workspace separation, anonymous backup denial, cross-account file and case denial, attachment upload/read byte equality, backup checksum validation, purge and object cleanup, account deletion, and rejection of deleted-account sessions. Both test accounts were removed by the application's deletion endpoint. GitHub OAuth was tested separately on the real account.
+- Browser photo upload automation stalled twice; its image decoding check did not succeed. PDF upload and download passed through the hosted API. Photo preparation through an ordinary user browser remains unverified on the hosted origin.
+
+Remaining limits: live workspace restoration is not available in the UI (isolated operator recovery is supplied); email sign-in is disabled pending reliable mail delivery; no external uptime alert service is configured; hosted offline/reconnection and ordinary-browser downloads need a final manual check. These results are not a production compliance, load, or accessibility certificate.
