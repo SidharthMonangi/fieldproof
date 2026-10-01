@@ -3,6 +3,7 @@ import { getChatGPTUser } from '@/app/chatgpt-auth';
 import type { CaseRecord, Member } from './domain';
 import { invitationCutoff } from './invitation';
 import { authClient } from './supabase-server';
+import { allowedWriteOrigin } from './write-origin';
 export class ApiError extends Error {
   constructor(
     public status: number,
@@ -99,7 +100,7 @@ export async function jsonBody(req: Request, max = 30000) {
 }
 export function guardOrigin(req: Request) {
   const origin = req.headers.get('origin');
-  if (origin && origin !== new URL(req.url).origin)
+  if (!allowedWriteOrigin(req.url, origin, (env as typeof env & { PUBLIC_APP_ORIGIN?: string }).PUBLIC_APP_ORIGIN))
     throw new ApiError(403, 'Cross-site writes are not allowed.');
   if (req.headers.get('sec-fetch-site') === 'cross-site')
     throw new ApiError(403, 'Cross-site writes are not allowed.');

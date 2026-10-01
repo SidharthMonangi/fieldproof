@@ -70,3 +70,9 @@ This section supersedes the earlier restoration, monitoring and disposable-accou
 - Hosted Workspace backup download was also checked in the in-app browser. Its automation missed the download event, but two JSON files appeared in the user's Downloads folder. Isolated recovery of the latest download validated three fictional cases; live records were unchanged. This verifies the Workspace backup control, not every individual attachment download.
 
 Remaining limits: email sign-in is disabled pending reliable delivery; hosted ordinary-browser photo preparation, individual attachment downloads and offline reconnection require a final manual check. Provider failure/retry behaviour has not been fault-injected. These results are not a production compliance, load, or accessibility certificate.
+
+## User-assisted hosted browser checks
+
+On 1 October 2026, the user confirmed that the uploaded photograph remained after reload and could be downloaded. Supplied Chrome screenshots showed the case loading with DevTools Offline enabled, one visit preserved in the device queue during offline reload, and one synced visit after reconnection. These are user-assisted checks, not automated browser results. The final empty-queue check after reload was not explicitly confirmed. The screenshot verifies download availability; opening the downloaded image was not separately confirmed.
+
+GitHub remains the supported sign-in method. Email sign-in was removed from the agreed scope after Gmail SMTP delivery failed. The previously listed photo upload and reconnection checks are superseded by the evidence above; independent load/security review and provider failure injection remain outside this verification.

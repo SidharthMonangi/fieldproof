@@ -1,0 +1,15 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": null,
+  "buildCommand": "npm run build",
+  "outputDirectory": "public",
+  "rewrites": [
+    { "source": "/auth/callback", "destination": "/api/auth-callback" },
+    { "source": "/:path((?!api/auth-callback$).*)", "destination": "https://fieldproof.sidharthmonangi.chatgpt.site/:path*" }
+  ],
+  "headers": [
+    { "source": "/:path*", "headers": [{ "key": "x-vercel-enable-rewrite-caching", "value": "0" }] },
+    { "source": "/api/:path*", "headers": [{ "key": "Cache-Control", "value": "private, no-store" }] },
+    { "source": "/auth/callback", "headers": [{ "key": "Cache-Control", "value": "private, no-store" }] }
+  ]
+}
