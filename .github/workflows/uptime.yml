@@ -12,7 +12,7 @@ jobs:
     steps:
       - name: Check the hosted app and database
         env:
-          FIELDPROOF_URL: https://fieldproof.sidharthmonangi.chatgpt.site
+          FIELDPROOF_URL: https://fieldproof-vercel.vercel.app
         run: |
           curl --fail --silent --show-error --retry 2 --retry-delay 10 --max-time 20 "$FIELDPROOF_URL/api/status" > health.json
           python3 -c 'import json; assert json.load(open("health.json"))["status"] == "ok"'
