@@ -1,0 +1,27 @@
+{
+  "version": "7",
+  "dialect": "sqlite",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "6",
+      "when": 1790802508621,
+      "tag": "0000_aromatic_unus",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1790852443317,
+      "tag": "0001_file_cleanup",
+      "breakpoints": false
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1790852443318,
+      "tag": "0002_account_closures",
+      "breakpoints": false
+    }
+  ]
+}
