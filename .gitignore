@@ -52,5 +52,8 @@ next-env.d.ts
 /FieldProof-source.zip
 /FieldProof-*.png
 /docs/evidence/github-authenticated-workspace.png
+/docs/evidence/github-*.png
+/docs/evidence/google-*.png
+/docs/evidence/supabase-*.png
 __pycache__/
 *.pyc

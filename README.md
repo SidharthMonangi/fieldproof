@@ -1,88 +1,67 @@
 # FieldProof
 
-Offline-capable housing fieldwork, evidence review and a source-backed handbook assistant.
+Housing fieldwork with recoverable offline drafts, evidence review and a source-checked handbook assistant.
 
-FieldProof is a complete working portfolio application: cases and visits persist in a server database, attachments persist in object storage, and field officers can keep working through interrupted connectivity. It is not a credit-approval system or a lender-approved procedure.
+**[Open the live app](https://fieldproof.sidharthmonangi.chatgpt.site)** · [Two-minute walkthrough](docs/RECRUITER-WALKTHROUGH.md) · [Architecture](docs/ARCHITECTURE.md) · [Verification evidence](docs/RELEASE-CHECKS.md)
 
-## What works
+Sign in with GitHub. Each new account receives a private workspace unless its email has a pending team invitation. Use the clearly labelled fictional starter cases to explore the workflow.
 
-- Authenticated personal workspaces with administrator, officer and reviewer permissions.
-- Applicant cases, assignments, consent recording and mobile field-visit forms.
-- PDF/image evidence uploads, photo resizing, metadata removal and protected downloads.
-- Draft, submitted, changes requested, verified and archived case states.
-- Checklist-gated submission, written review explanations and an append-only activity history.
-- IndexedDB drafts and operation queues that survive reloads, including attachment bytes.
-- Stable mutation identifiers, saved receipts, safe retries and explicit conflict resolution.
-- Installable application shell with offline recovery after an initial connected visit.
-- Versioned handbook entries, deterministic case checklist tools, supported-source retrieval and Gemini-generated answers with optional OpenAI support.
-- Unsent-work backups, case exports, private key handling and provider-failure fallbacks.
+## What the application does
 
-## Two-minute review
+- Stores cases, consent, assignments, visits, evidence and review history in persistent D1/R2 storage.
+- Supports administrator, field-officer and reviewer roles with server-side workspace and assignment checks.
+- Saves IndexedDB drafts and attachment bytes before syncing. Stable operation IDs and server receipts prevent retry duplicates; version checks surface conflicts for explicit resolution.
+- Gates submission on evidence completeness. Reviewers can request changes or verify evidence; these are separate from lending decisions.
+- Retrieves versioned handbook passages and generates bounded Gemini answers whose cited quotations are checked against the original text. Unsupported questions and provider failures return source material or abstain.
+- Imports a small allowlist of official PIB and BEE references with publication dates, fetch times and explicit snapshot labels.
+- Exports workspace records and attachment bytes with SHA-256 checksums. In-app restoration adds new draft copies, requires fresh consent and visit confirmation, and never imports team permissions.
+- Provides permanent deletion for archived cases, durable attachment cleanup, and account deletion for empty personal workspaces.
+- Exposes a minimal health endpoint at `/api/status`. An hourly GitHub Actions workflow checks the app and database without authentication secrets.
 
-Open a fictional case, pause sync in Sync centre, record a visit and reload. Resume sync and confirm that one visit arrives. Then read `lib/operations.ts` to see how version checks, conditional inserts and atomic receipts prevent silent overwrites and duplicates.
+## Where to look first
 
-See [the walkthrough](docs/RECRUITER-WALKTHROUGH.md) and [architecture and limitations](docs/ARCHITECTURE.md).
+Open Sync centre, pause syncing, edit a fictional case, and resume. Then read [lib/operations.ts](lib/operations.ts) and [lib/device.ts](lib/device.ts) for version checks, atomic mutation receipts and conflict recovery. For backup integrity and safe recovery, read [lib/backup.ts](lib/backup.ts) and [app/api/restore/route.ts](app/api/restore/route.ts).
 
-## Local development
+## Run locally
 
-Requires Node.js 22.13 or newer. The application uses the provided Vinext/Cloudflare starter and npm lockfile.
+Requires Node.js 22.13+ and Python 3.12+ for recovery tests.
 
 1. Run `npm ci`.
-2. Copy `.env.example` to `.env.local` and set the server-only Gemini key (OpenAI is optional). Never commit it.
-3. Run `npm run build` to generate the local Worker configuration.
-4. Apply each generated migration once, in order:
+2. Copy `.env.example` to `.env.local`. Configure your own Supabase URL and publishable key, and optionally a Gemini key. Account deletion also requires a server-only Supabase secret key. Never commit secrets.
+3. Run `npm run build`.
+4. Apply the SQL files in `drizzle/` once, in numeric order, using the generated Worker configuration. For example:
 
-   `node --import ./scripts/sites-env.mjs ./node_modules/wrangler/bin/wrangler.js d1 execute DB --local --config dist/server/wrangler.json --persist-to .wrangler/state --file drizzle/0000_aromatic_unus.sql`
+   `node --import ./scripts/sites-env.mjs node_modules/wrangler/bin/wrangler.js d1 execute DB --local --config dist/server/wrangler.json --persist-to .wrangler/state --file drizzle/0000_aromatic_unus.sql`
 
-5. Run `npm run dev` and open the printed local URL.
-6. Choose Open your workspace. Portable development uses the fictional local account `Seedy`; this mock sign-in is not included in production.
-7. Load fictional starter cases from an empty workspace, or create your own sample data.
+5. Copy `.env.local` to `dist/server/.dev.vars` for the local Worker, then run `npm start`. Repeat that copy after rebuilding. This file is local-only and must be removed before packaging a deployment.
+6. Add your local `/auth/callback` URL to your own Supabase redirect allowlist and sign in. Load fictional starter cases or create sample records.
 
-The production build needs Cloudflare D1 (`DB`), R2 (`BUCKET`) and trusted dispatcher identity headers. Sites supplies these on deployment. A plain static host cannot run this application.
+The provided Sites manifest belongs to the original hosted project. Forks must use their own hosting project and provider configuration. A static host alone cannot run the server APIs.
 
 ## Verification
 
-- `npm run typecheck`
-- `npm test`
-- `npm run test:integration` with the local development server running
-- Set `FIELDPROOF_TEST_AI=1` to opt into one provider request during integration checks.
-- `npm run build`
+- `npm test` — 24 domain, provider, source and backup tests.
+- `python -m unittest discover -s tests -p 'test_*.py'` — 13 isolated recovery and account-deletion eligibility tests.
+- `npm run typecheck` and `npm run build`.
+- `node tests/maintenance.integration.mjs` — 37 local maintenance checks, including restoration, role boundaries, checksum rejection and retry deduplication. This requires an isolated loopback Worker with fictional trusted-header identities, never public authentication bypasses.
+- `tests/hosted.integration.mjs` is an explicit opt-in destructive test limited to freshly created disposable accounts. It requires a private local admin key and deletes only its own test workspaces and accounts. Do not put that key into CI.
 
-The integration suite checks real local D1/R2 persistence, duplicate retries, concurrent edits, downloads, submission prerequisites, review transitions, audit counts and cross-site/anonymous rejection. It creates fictional fixtures and archives its completed case.
+GitHub sign-in, hosted sessions, generated cited answers, official source fetching, account separation, PDF storage, backup checksums and disposable account deletion were verified on the deployed origin. See the release evidence for the exact scope and remaining browser checks.
 
-Initial verification: six domain/retrieval tests and 36 integration checks passed. Gemini subsequently generated source-checked answers in the browser using live PIB content. Ten unit tests and twelve additional local account-permission checks passed; broad AI-quality evaluation remains pending.
+## Recovery bounds
 
-## Deployment and secrets
+In-app imports accept at most 20 cases, 50 visits, 100 history entries, 40 attachments, 40 guidance entries and 10 MB of attachment bytes within a 16 MB request. Export supports up to 25 MB of attachments. Larger backups can be validated into a new isolated SQLite/object folder with `python scripts/restore-backup.py backup.json new-recovery-folder`.
 
-The existing private Sites identity is in `.openai/hosting.json`. Reuse that project; do not create another. Keep runtime keys in private environment settings. Source and deployment archives must exclude `.env.local`, device data, `.wrangler/`, `.sites-runtime/` and `node_modules/`.
+Restored records receive new IDs and are assigned to the restoring administrator. Current records remain unchanged. Imported guidance is labelled sample material. If restoration is interrupted, unused objects are tracked for cleanup; an active restore is protected from manual cleanup for ten minutes. A stable restore request ID prevents retry duplicates.
 
-The initial workspace is private. App-level invitations do not grant site-level access. Sharing needs an explicit audience decision, followed by site access settings and the workspace role invitation.
+## Monitoring and operational limits
 
-## Before operational use
+The hourly workflow uses a standard Ubuntu runner with read-only repository permissions and no credentials. GitHub schedules can be delayed; this is a portfolio uptime check, not a service-level guarantee. Failure notifications follow the repository owner's GitHub Actions notification settings.
 
-The project is suitable for portfolio review and fictional workflow testing. Real customer deployment needs approved procedures, security review, document scanning, retention rules, device protection, backup/restore testing and operational monitoring. See the architecture document for concrete bounds and tradeoffs.
+Email sign-in remains disabled pending reliable email delivery. Ordinary-browser photo preparation, downloads and hosted offline reconnection still need a final manual check. Uploaded signatures are checked, but antivirus scanning and document authenticity verification are not implemented. Real customer use requires approved procedures, consent and retention policies, device protection, and independent security review.
 
-MIT licensed. Built with React, TypeScript, Vinext, Cloudflare D1/R2, IndexedDB and Gemini / OpenAI APIs.
+Gemini receives handbook questions and selected passages, not applicant records or attachments. Free-tier quotas and provider data-use terms apply. Exact citation checking establishes provenance, not that every generated sentence is correct. This application does not approve credit, verify identity, certify buildings or claim regulatory compliance.
 
+## Stack
 
-## Gemini and public sources
-Gemini is preferred when GEMINI_API_KEY is set (default gemini-3.1-flash-lite). A live structured answer with an exact quotation passed on 1 October 2026; broad answer-quality evaluation is still pending. Gemini free-tier data-use terms apply. Applicant records and attachments are not sent to the provider.
-
-Administrators can refresh an allowlist of PIB housing updates and BEE building guidance. The importer downloads bounded HTML, extracts up to three relevant paragraphs, and records original URLs, publication information and fetch time in versioned entries. Failed fetches preserve previous entries. This is a small curated source library, not comprehensive news coverage; imported content requires human interpretation and is not lender policy.
-
-
-The public updates feed shows publication dates separately from fetch dates, labels snapshots, links to original publishers, and opens context-specific assistant questions. Three PIB releases were downloaded in the local preview; BEE remained a labelled snapshot. Re-fetching unchanged content preserves its version. The phone layout was checked at 390px, including navigation and horizontal overflow.
-
-Run the additional local role checks with `node tests/roles.integration.mjs` against the Worker on port 8788. This test-only workflow emulates trusted dispatch headers with fictional accounts and must never be used to bypass authentication on a deployed server.
-
-
-## Local release evidence
-
-The final local release has 15 unit tests, a 28-check journey with separate officer and reviewer accounts, and six controlled live AI scenarios. Browser checks cover mobile case forms, draft recovery, dialog focus, and a conflict recovered after comparing both versions. These are local checks, not proof of production load capacity or a security certification.
-
-- [Release checks and limitations](docs/RELEASE-CHECKS.md)
-- [Recruiter kit and two-minute demo script](docs/RECRUITER-KIT.md)
-- [Workflow result](docs/WORKFLOW-RESULT.json)
-- [AI evaluation results](docs/AI-EVALUATION.json)
-
-A GitHub Actions workflow is included for unit tests, type checking and builds. It has not run on GitHub because this repository has not been published. The integration scripts use fictional trusted-header identities against the loopback Worker only. Never expose the test proxy or use those identities as deployed authentication.
+React, TypeScript, Vinext, Supabase Auth, Cloudflare D1/R2, IndexedDB and server-side Gemini. MIT licensed; see [LICENSE](LICENSE).

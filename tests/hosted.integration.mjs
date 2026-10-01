@@ -56,6 +56,20 @@ const backup=await call(a,'/api/export');check(backup.status,200,'hosted workspa
 check(backup.data.records.cases.length,1,'backup contains only test account case');
 check(createHash('sha256').update(Buffer.from(backup.data.attachments[0].base64,'base64')).digest('hex'),backup.data.attachments[0].sha256,'backup attachment checksum');
 check((await call(b,'/api/export')).data.attachments.length,0,'other account backup cannot leak attachment');
+const recovery={id:randomUUID(),confirmation:'RESTORE AS DRAFTS',backup:backup.data};
+check((await call(a,'/api/restore',recovery)).status,200,'hosted backup recovery');
+check((await call(a,'/api/restore',recovery)).status,200,'recovery retry uses receipt');
+const recovered=(await call(a,'/api/bootstrap')).data;
+check(recovered.cases.length,2,'recovery retry does not create duplicates');
+const copy=recovered.cases.find(record=>record.id!==caseId);
+check(copy.status,'draft','recovered case is a new draft');check(copy.data.consent,false,'recovered consent requires a fresh check');
+const copyFile=recovered.files.find(file=>file.caseId===copy.id);
+check((await call(a,'/api/files/'+copyFile.id)).bytes.equals(bytes),true,'recovered attachment bytes match backup');
+check((await call(b,'/api/files/'+copyFile.id)).status,404,'other account cannot read recovered attachment');
+check((await call(a,'/api/operations',{id:randomUUID(),caseId:copy.id,baseVersion:1,type:'archive',payload:{}})).status,200,'recovered disposable case archive');
+check((await call(a,'/api/purge',{action:'purge',caseId:copy.id,version:2,confirmation:'DELETE '+copy.ref})).status,200,'recovered disposable case cleanup');
+check((await call(null,'/api/status')).status,200,'public health check');
+
 check((await call(a,'/api/operations',operation('archive'))).status,200,'disposable case archive');version++;
 const record=(await call(a,'/api/bootstrap')).data.cases[0];
 check((await call(a,'/api/purge',{action:'purge',caseId,version,confirmation:'DELETE '+record.ref})).status,200,'disposable case purge');

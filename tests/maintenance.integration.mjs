@@ -27,6 +27,18 @@ check(backup.data.records.cases.length,1);check(backup.data.attachments.length,1
 const restored=Buffer.from(backup.data.attachments[0].base64,'base64');
 check(restored.equals(bytes),true);check(createHash('sha256').update(restored).digest('hex'),backup.data.attachments[0].sha256);
 fs.mkdirSync('../work',{recursive:true});fs.writeFileSync('../work/fictional-workspace-backup.json',JSON.stringify(backup.data));
+const restore={id:randomUUID(),confirmation:'RESTORE AS DRAFTS',backup:backup.data};
+check((await call(officer,'/api/restore',restore)).status,403);
+const damaged=structuredClone(backup.data);damaged.attachments[0].base64=Buffer.from('corrupt').toString('base64');
+check((await call(admin,'/api/restore',{...restore,id:randomUUID(),backup:damaged})).status,400);
+const recovered=await call(admin,'/api/restore',restore);check(recovered.status,200);check(recovered.data.cases,1);check(recovered.data.attachments,1);
+check((await call(admin,'/api/restore',restore)).status,200);
+const afterRecovery=(await call(admin,'/api/bootstrap')).data;check(afterRecovery.cases.length,2);
+const copy=afterRecovery.cases.find(record=>record.id!==caseId);check(copy.status,'draft');check(copy.data.consent,false);check(copy.version,1);
+const recoveredFile=afterRecovery.files.find(file=>file.caseId===copy.id);check(!!recoveredFile,true);
+check((await call(admin,'/api/restore',{...restore,backup:{...backup.data,exportedAt:new Date(Date.now()+1000).toISOString()}})).status,409);
+check((await call(admin,'/api/operations',{id:randomUUID(),caseId:copy.id,baseVersion:1,type:'archive',payload:{}})).status,200);
+check((await call(admin,'/api/purge',{action:'purge',caseId:copy.id,version:2,confirmation:'DELETE '+copy.ref})).status,200);
 const ref=backup.data.records.cases[0].ref;
 const purge={action:'purge',caseId,version,confirmation:'DELETE '+ref};
 check((await call(admin,'/api/purge',purge)).status,409);

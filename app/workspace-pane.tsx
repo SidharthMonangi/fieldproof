@@ -34,20 +34,41 @@ export function WorkspacePane({
   const [purgeId, setPurgeId] = useState('');
   const [confirmation, setConfirmation] = useState('');
   const [purging, setPurging] = useState(false);
-  const [health, setHealth] = useState<{database:string;storage:string;assistant:string;pendingFileCleanup:number}>();
-  const archived = b.cases.filter(record => record.status === 'archived');
-  const selectedPurge = archived.find(record => record.id === purgeId);
+  const [backupFile, setBackupFile] = useState<File>();
+  const [restoreConfirmation, setRestoreConfirmation] = useState('');
+  const [restoreId, setRestoreId] = useState(() => crypto.randomUUID());
+  const [health, setHealth] = useState<{
+    database: string;
+    storage: string;
+    assistant: string;
+    pendingFileCleanup: number;
+  }>();
+  const archived = b.cases.filter((record) => record.status === 'archived');
+  const selectedPurge = archived.find((record) => record.id === purgeId);
   const maintenance = async (payload: unknown) => {
     setBusy(true);
     try {
-      const response = await fetch('/api/purge', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
-      const result = await response.json() as {error?:string;pending:number};
+      const response = await fetch('/api/purge', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const result = (await response.json()) as { error?: string; pending: number };
       if (!response.ok) throw new Error(result.error);
-      toast.success(result.pending ? 'Case records removed; file cleanup needs a retry.' : 'Deletion and file cleanup completed.');
-      setPurging(false); setPurgeId(''); setConfirmation('');
+      toast.success(
+        result.pending
+          ? 'Case records removed; file cleanup needs a retry.'
+          : 'Deletion and file cleanup completed.',
+      );
+      setPurging(false);
+      setPurgeId('');
+      setConfirmation('');
       await onRefresh();
-    } catch(error) { toast.error((error as Error).message); }
-    finally { setBusy(false); }
+    } catch (error) {
+      toast.error((error as Error).message);
+    } finally {
+      setBusy(false);
+    }
   };
   const load = async () => {
     if (b.user.role !== 'admin') return;
@@ -83,17 +104,59 @@ export function WorkspacePane({
     try {
       const response = await fetch('/api/export', { cache: 'no-store' });
       if (!response.ok) {
-        const problem = await response.json() as { error?: string };
+        const problem = (await response.json()) as { error?: string };
         throw new Error(problem.error || 'Backup could not finish. Please retry.');
       }
       const url = URL.createObjectURL(await response.blob());
       const anchor = document.createElement('a');
-      anchor.href = url; anchor.download = 'fieldproof-workspace-backup.json';
+      anchor.href = url;
+      anchor.download = 'fieldproof-workspace-backup.json';
       anchor.click();
       setTimeout(() => URL.revokeObjectURL(url), 30000);
       toast.success('Workspace backup downloaded. Keep it private.');
-    } catch (error) { toast.error((error as Error).message); }
-    finally { setBusy(false); }
+    } catch (error) {
+      toast.error((error as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+  const restoreWorkspace = async () => {
+    if (!backupFile) return;
+    setBusy(true);
+    try {
+      if (backupFile.size > 16 * 1024 * 1024)
+        throw new Error(
+          'In-app backups must be no larger than 16 MB. Use isolated recovery for larger exports.',
+        );
+      let backup;
+      try {
+        backup = JSON.parse(await backupFile.text());
+      } catch {
+        throw new Error('Choose a valid FieldProof JSON backup.');
+      }
+      const response = await fetch('/api/restore', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: restoreId, confirmation: restoreConfirmation, backup }),
+      });
+      const result = (await response.json()) as {
+        error?: string;
+        cases: number;
+        attachments: number;
+      };
+      if (!response.ok) throw new Error(result.error || 'Restoration could not finish.');
+      toast.success(
+        `${result.cases} draft copies and ${result.attachments} attachments restored. Recheck consent and visits.`,
+      );
+      setBackupFile(undefined);
+      setRestoreConfirmation('');
+      setRestoreId(crypto.randomUUID());
+      await onRefresh();
+    } catch (error) {
+      toast.error((error as Error).message);
+    } finally {
+      setBusy(false);
+    }
   };
   return (
     <>
@@ -241,8 +304,11 @@ export function WorkspacePane({
             </p>
             <div className="actions">
               {b.user.role === 'admin' && (
-                <button className="secondary" disabled={!online || hasPending || busy}
-                  onClick={() => void exportWorkspace()}>
+                <button
+                  className="secondary"
+                  disabled={!online || hasPending || busy}
+                  onClick={() => void exportWorkspace()}
+                >
                   Export workspace backup
                 </button>
               )}
@@ -255,8 +321,11 @@ export function WorkspacePane({
                 onClick={() => {
                   void (async () => {
                     const response = await fetch('/api/signout', { method: 'POST' });
-                    if (!response.ok) { toast.error('Sign-out could not finish. Please retry.'); return; }
-                    const result = await response.json() as { next: string };
+                    if (!response.ok) {
+                      toast.error('Sign-out could not finish. Please retry.');
+                      return;
+                    }
+                    const result = (await response.json()) as { next: string };
                     await forgetActive();
                     location.assign(result.next);
                   })().catch(() => toast.error('Connect to the internet to sign out.'));
@@ -272,41 +341,142 @@ export function WorkspacePane({
                 out.
               </p>
             )}
-            {b.user.role === 'admin' && <p className="subtle">
-              Backups contain server records and attachment bytes (up to 25 MB). Keep them private.
-              Sync pending work first; unsaved form drafts are not included. Restoration requires
-              an administrator and is not yet available in this app.
-            </p>}
+            {b.user.role === 'admin' && (
+              <p className="subtle">
+                Backups contain server records and attachment bytes (up to 25 MB). Keep them
+                private. Sync pending work first; unsaved form drafts are not included. Restore
+                backups below as new draft copies, or use the supplied isolated recovery tool for
+                larger exports.
+              </p>
+            )}
             <p className="subtle">
               This portfolio workspace uses fictional data and sample guidance. Real customer use
               requires organisational policies, approved procedures and operational review.
             </p>
             <a href="/delete-account">Review account deletion</a>
           </section>
-          {b.user.role === 'admin' && <section className="panel">
-            <h2>Workspace maintenance</h2>
-            <p className="subtle">Check service configuration and retry file cleanup. These checks do not certify provider uptime.</p>
-            <div className="actions">
-              <button className="secondary" disabled={!online || busy} onClick={() => {
-                void fetch('/api/health', {cache:'no-store'}).then(async response => {
-                  const result = await response.json() as {error?:string;database:string;storage:string;assistant:string;pendingFileCleanup:number};
-                  if (!response.ok) throw new Error(result.error);
-                  setHealth(result);
-                }).catch(error => toast.error(error.message));
-              }}>Check services</button>
-              <button className="secondary" disabled={!online || busy || hasPending} onClick={() => void maintenance({action:'cleanup'})}>Retry file cleanup</button>
-            </div>
-            {health && <p role="status">Database: {health.database} · Storage: {health.storage} · Assistant: {health.assistant} · Pending cleanup: {health.pendingFileCleanup}</p>}
-            <h3>Delete an archived case</h3>
-            <p className="subtle">Download a backup first. Deletion permanently removes the case, visits, evidence and activity. It does not delete your sign-in account or your whole workspace.</p>
-            <Field label="Archived case">
-              <select value={purgeId} onChange={event => {setPurgeId(event.target.value);setConfirmation('');}}>
-                <option value="">Choose a case</option>
-                {archived.map(record => <option key={record.id} value={record.id}>{record.ref} — {record.data.name}</option>)}
-              </select>
-            </Field>
-            <button className="secondary" disabled={!selectedPurge || !online || busy || hasPending} onClick={() => setPurging(true)}>Review deletion</button>
-          </section>}
+          {b.user.role === 'admin' && (
+            <section className="panel">
+              <h2>Workspace maintenance</h2>
+              <h3>Restore a workspace backup</h3>
+              <p className="subtle">
+                Existing cases remain. Backups restore as new drafts assigned to you; consent and
+                visit confirmation must be checked again. Team permissions and invitations are not
+                imported. In-app limits: 20 cases, 50 visits, 100 activity entries, 40 attachments,
+                40 guidance entries and 10 MB of attachment bytes. Guidance is marked as sample
+                material.
+              </p>
+              <form
+                className="form-grid"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  void restoreWorkspace();
+                }}
+              >
+                <Field label="FieldProof JSON backup">
+                  <input
+                    type="file"
+                    accept="application/json,.json"
+                    disabled={busy}
+                    onChange={(event) => {
+                      setBackupFile(event.target.files?.[0]);
+                      setRestoreId(crypto.randomUUID());
+                      setRestoreConfirmation('');
+                    }}
+                  />
+                </Field>
+                {backupFile && <p className="subtle">Selected: {backupFile.name}</p>}
+                <Field label="Type RESTORE AS DRAFTS">
+                  <input
+                    value={restoreConfirmation}
+                    onChange={(event) => setRestoreConfirmation(event.target.value)}
+                    autoComplete="off"
+                    disabled={busy}
+                  />
+                </Field>
+                <button
+                  className="secondary"
+                  disabled={
+                    !backupFile ||
+                    !online ||
+                    busy ||
+                    hasPending ||
+                    restoreConfirmation !== 'RESTORE AS DRAFTS'
+                  }
+                >
+                  Restore draft copies
+                </button>
+              </form>
+              <p className="subtle">
+                Check service configuration and retry file cleanup. These checks do not certify
+                provider uptime.
+              </p>
+              <div className="actions">
+                <button
+                  className="secondary"
+                  disabled={!online || busy}
+                  onClick={() => {
+                    void fetch('/api/health', { cache: 'no-store' })
+                      .then(async (response) => {
+                        const result = (await response.json()) as {
+                          error?: string;
+                          database: string;
+                          storage: string;
+                          assistant: string;
+                          pendingFileCleanup: number;
+                        };
+                        if (!response.ok) throw new Error(result.error);
+                        setHealth(result);
+                      })
+                      .catch((error) => toast.error(error.message));
+                  }}
+                >
+                  Check services
+                </button>
+                <button
+                  className="secondary"
+                  disabled={!online || busy || hasPending}
+                  onClick={() => void maintenance({ action: 'cleanup' })}
+                >
+                  Retry file cleanup
+                </button>
+              </div>
+              {health && (
+                <p role="status">
+                  Database: {health.database} · Storage: {health.storage} · Assistant:{' '}
+                  {health.assistant} · Pending cleanup: {health.pendingFileCleanup}
+                </p>
+              )}
+              <h3>Delete an archived case</h3>
+              <p className="subtle">
+                Download a backup first. Deletion permanently removes the case, visits, evidence and
+                activity. It does not delete your sign-in account or your whole workspace.
+              </p>
+              <Field label="Archived case">
+                <select
+                  value={purgeId}
+                  onChange={(event) => {
+                    setPurgeId(event.target.value);
+                    setConfirmation('');
+                  }}
+                >
+                  <option value="">Choose a case</option>
+                  {archived.map((record) => (
+                    <option key={record.id} value={record.id}>
+                      {record.ref} — {record.data.name}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              <button
+                className="secondary"
+                disabled={!selectedPurge || !online || busy || hasPending}
+                onClick={() => setPurging(true)}
+              >
+                Review deletion
+              </button>
+            </section>
+          )}
         </div>
       </div>
       <AlertDialog open={clearing} onOpenChange={setClearing}>
@@ -327,14 +497,36 @@ export function WorkspacePane({
       <AlertDialog open={purging} onOpenChange={setPurging}>
         <AlertDialogContent className="fp-dialog">
           <AlertDialogTitle>Permanently delete {selectedPurge?.ref}?</AlertDialogTitle>
-          <AlertDialogDescription>This cannot be undone in the app. Download and verify a backup first. Other devices may retain offline copies until they reconnect or their caches are cleared.</AlertDialogDescription>
+          <AlertDialogDescription>
+            This cannot be undone in the app. Download and verify a backup first. Other devices may
+            retain offline copies until they reconnect or their caches are cleared.
+          </AlertDialogDescription>
           <Field label={'Type DELETE ' + (selectedPurge?.ref || '')}>
-            <input value={confirmation} onChange={event => setConfirmation(event.target.value)} autoComplete="off" />
+            <input
+              value={confirmation}
+              onChange={(event) => setConfirmation(event.target.value)}
+              autoComplete="off"
+            />
           </Field>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={busy}>Cancel</AlertDialogCancel>
-            <button className="primary" disabled={busy || !online || hasPending || confirmation !== 'DELETE ' + selectedPurge?.ref}
-              onClick={() => selectedPurge && void maintenance({action:'purge',caseId:selectedPurge.id,version:selectedPurge.version,confirmation})}>Delete permanently</button>
+            <button
+              className="primary"
+              disabled={
+                busy || !online || hasPending || confirmation !== 'DELETE ' + selectedPurge?.ref
+              }
+              onClick={() =>
+                selectedPurge &&
+                void maintenance({
+                  action: 'purge',
+                  caseId: selectedPurge.id,
+                  version: selectedPurge.version,
+                  confirmation,
+                })
+              }
+            >
+              Delete permanently
+            </button>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

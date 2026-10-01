@@ -58,3 +58,11 @@ OpenAI receives the question and selected handbook passages, not applicant recor
 Gemini is preferred when GEMINI_API_KEY is set (default gemini-3.1-flash-lite). A live structured answer with an exact quotation passed on 1 October 2026; broad answer-quality evaluation is still pending. Gemini free-tier data-use terms apply. Applicant records and attachments are not sent to the provider.
 
 Administrators can refresh an allowlist of PIB housing updates and BEE building guidance. The importer downloads bounded HTML, extracts up to three relevant paragraphs, and records original URLs, publication information and fetch time in versioned entries. Failed fetches preserve previous entries. This is a small curated source library, not comprehensive news coverage; imported content requires human interpretation and is not lender policy.
+
+## Backup restoration and health checks
+
+The in-app restore endpoint validates record shape, workspace consistency, unique IDs, safe object keys, byte sizes, file signatures and SHA-256 hashes before any writes. It imports new draft copies into the administrator's current workspace; it does not import members or invitations. Consent and visit confirmation are reset, and imported history is labelled as recovered history. New IDs keep existing cases unchanged. Restored handbook entries are marked as sample material.
+
+Object staging is tracked in a durable cleanup job before uploads. Its cleanup eligibility is delayed ten minutes to protect the active operation; unsuccessful restores make it eligible immediately. After objects are written, one D1 batch inserts the relational rows, writes an idempotent response receipt and removes the staging job. If the response is lost after commit, retrying the same request ID returns that receipt. If a Worker crashes before commit, a later administrator cleanup can remove the staged objects. This does not provide a distributed R2/D1 transaction.
+
+`/api/status` exposes only availability and a correlation ID on failure. It performs a database query and never reveals credentials, account information or record counts. The hourly GitHub workflow uses no provider keys and read-only repository permissions. It checks app/database availability rather than AI quotas, email delivery or every storage object. GitHub scheduling and notification settings remain operational dependencies.

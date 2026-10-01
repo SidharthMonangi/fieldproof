@@ -1,5 +1,8 @@
 # FieldProof recruiter kit
 
+Live app: https://fieldproof.sidharthmonangi.chatgpt.site
+Source: https://github.com/SidharthMonangi/fieldproof
+
 ## Project description
 FieldProof is a housing fieldwork and evidence-review application designed for interrupted connectivity. Field officers capture cases, visits and attachments; separate reviewers request corrections and verify evidence completeness. A source-backed Gemini assistant answers handbook questions and explains dated official housing reports.
 
@@ -8,11 +11,11 @@ Start with Sync centre: pause syncing, save a fictional field update, reload, an
 
 ## Resume entry
 **FieldProof — offline-capable housing fieldwork and review platform**  
-React, TypeScript, Cloudflare D1/R2, IndexedDB, Gemini
+React, TypeScript, Supabase Auth, Cloudflare D1/R2, IndexedDB, Gemini
 
 - Implemented device-persisted drafts and queued evidence updates with idempotent receipts, version conflicts and an auditable review workflow.
 - Integrated Gemini answers with schema-constrained source quotations, unsupported-question abstention and explicit handling of dated public reports.
-- Verified 15 unit tests, a 28-check separate officer/reviewer workflow, and six controlled AI scenarios against local services; checked mobile forms, keyboard focus and conflict recovery in the browser.
+- Verified 24 unit tests, 13 recovery/deletion tests, a 37-check local maintenance workflow, and separate hosted account/privacy/storage checks; checked mobile forms, keyboard focus and conflict recovery in the browser.
 
 Use these bullets after reviewing and understanding the implementation. Describe AI-assisted development honestly when asked. The counts describe checks, not customer impact or a measured accuracy percentage.
 
