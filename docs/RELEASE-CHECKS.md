@@ -53,4 +53,18 @@ Production: https://fieldproof.sidharthmonangi.chatgpt.site
 - 25 hosted integration checks passed using two disposable real Supabase password-authenticated accounts. These exercised workspace separation, anonymous backup denial, cross-account file and case denial, attachment upload/read byte equality, backup checksum validation, purge and object cleanup, account deletion, and rejection of deleted-account sessions. Both test accounts were removed by the application's deletion endpoint. GitHub OAuth was tested separately on the real account.
 - Browser photo upload automation stalled twice; its image decoding check did not succeed. PDF upload and download passed through the hosted API. Photo preparation through an ordinary user browser remains unverified on the hosted origin.
 
-Remaining limits: live workspace restoration is not available in the UI (isolated operator recovery is supplied); email sign-in is disabled pending reliable mail delivery; no external uptime alert service is configured; hosted offline/reconnection and ordinary-browser downloads need a final manual check. These results are not a production compliance, load, or accessibility certificate.
+Remaining limits at the preceding release: live workspace restoration was not available in the UI; email sign-in was disabled; external uptime monitoring was not configured; hosted offline/reconnection and ordinary-browser downloads needed a final manual check.
+
+## Release 3: hosted recovery and monitoring
+
+This section supersedes the earlier restoration, monitoring and disposable-account verification limits above.
+
+- Deployment of source commit `7895241ed8028acd8851353a3c0416eb5694b4c3` succeeded on the same public origin.
+- 24 unit tests, 13 Python tests, 37 local maintenance checks, type checking and production build passed.
+- 35 hosted integration checks passed on 1 October 2026 at 15:18 UTC, using two disposable real Supabase sessions. Recovery created a separate draft, required fresh consent, preserved attachment bytes, denied another account access and reused the same receipt on retry without duplicate cases. Both recovered and original test cases were purged and both disposable accounts were deleted through the app. The real user's account and cases were retained.
+- In-app restoration is available to administrators in Workspace maintenance. It validates checksums, object references and domain records; copies records to new IDs; leaves current records unchanged; and does not import permissions. The README documents import bounds and crash-cleanup protection.
+- Public source is published at https://github.com/SidharthMonangi/fieldproof.
+- GitHub CI completed successfully: https://github.com/SidharthMonangi/fieldproof/actions/runs/36882032326.
+- The hourly uptime workflow's first manually triggered live run succeeded: https://github.com/SidharthMonangi/fieldproof/actions/runs/36883482070. It checks the public minimal health endpoint and database, using no secrets. Scheduled runs may be delayed; notification delivery follows the owner's GitHub Actions preferences and was not separately tested.
+
+Remaining limits: email sign-in is disabled pending reliable delivery; hosted ordinary-browser photo preparation, downloads and offline reconnection require a final manual check. Provider failure/retry behaviour has not been fault-injected. These results are not a production compliance, load, or accessibility certificate.

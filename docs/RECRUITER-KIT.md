@@ -15,7 +15,7 @@ React, TypeScript, Supabase Auth, Cloudflare D1/R2, IndexedDB, Gemini
 
 - Implemented device-persisted drafts and queued evidence updates with idempotent receipts, version conflicts and an auditable review workflow.
 - Integrated Gemini answers with schema-constrained source quotations, unsupported-question abstention and explicit handling of dated public reports.
-- Verified 24 unit tests, 13 recovery/deletion tests, a 37-check local maintenance workflow, and separate hosted account/privacy/storage checks; checked mobile forms, keyboard focus and conflict recovery in the browser.
+- Verified 24 unit tests, 13 recovery/deletion tests, 37 local maintenance checks and 35 hosted account/privacy/storage/recovery checks; checked mobile forms, keyboard focus and conflict recovery locally in the browser.
 
 Use these bullets after reviewing and understanding the implementation. Describe AI-assisted development honestly when asked. The counts describe checks, not customer impact or a measured accuracy percentage.
 
@@ -39,4 +39,4 @@ Use these bullets after reviewing and understanding the implementation. Describe
 6. How would this change for a real lender with independent review, device security, malware scanning and retention requirements?
 
 ## Sharing status
-Local source and verification artifacts are ready. No GitHub repository or hosted link has been published. Hosted authentication, storage, credentials, database migration and recruiter access must be verified after deployment. A recording script is supplied; no narrated video or user-research claim is implied.
+The public GitHub repository and hosted application are published at the links above. Hosted GitHub authentication, persistent storage, generated cited answers and disposable-account privacy/recovery checks passed. GitHub CI passed. Hosted photo preparation and offline reconnection still need ordinary-browser checks; email sign-in remains disabled. A recording script is supplied; no narrated video or user-research claim is implied.
