@@ -2,7 +2,7 @@
 
 Housing fieldwork with recoverable offline drafts, evidence review and a source-checked handbook assistant.
 
-**[Open the live app](https://fieldproof.sidharthmonangi.chatgpt.site)** · [Two-minute walkthrough](docs/RECRUITER-WALKTHROUGH.md) · [Architecture](docs/ARCHITECTURE.md) · [Verification evidence](docs/RELEASE-CHECKS.md)
+**[Open the live app](https://fieldproof-vercel.vercel.app)** · [Two-minute walkthrough](docs/RECRUITER-WALKTHROUGH.md) · [Architecture](docs/ARCHITECTURE.md) · [Verification evidence](docs/RELEASE-CHECKS.md)
 
 Sign in with GitHub. Each new account receives a private workspace unless its email has a pending team invitation. Use the clearly labelled fictional starter cases to explore the workflow.
 
