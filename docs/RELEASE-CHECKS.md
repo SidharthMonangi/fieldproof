@@ -4,7 +4,7 @@ Checked on 1 October 2026. These results cover the local application, not a host
 
 | Area | Evidence | Result |
 | --- | --- | --- |
-| Domain, source and provider behaviour | 15 unit tests | Passed |
+| Domain, source and provider behaviour | 16 unit tests | Passed |
 | Separate officer / reviewer journey | `WORKFLOW-RESULT.json`, 28 checks | Passed |
 | Invitations and role restrictions | `tests/roles.integration.mjs`, 12 checks | Passed in prior local run |
 | Live assistant behaviour | `AI-EVALUATION.json`, six controlled scenarios | Passed after fixes |
@@ -30,3 +30,13 @@ The six scenarios cover supported guidance, an unrelated forecast, dated reports
 
 ## Remaining deployment checks
 Apply database migrations once; confirm trusted authentication dispatch; provision persistent D1/R2; configure the Gemini secret on the server; verify source refresh and generated answers; verify independent accounts and file access; verify offline cache on the hosted origin; configure reviewer access before sharing a recruiter link.
+
+## Recovery and deletion checks
+
+- Full fictional workspace export and isolated SQLite/object recovery passed. Six recovery tests reject corrupt or unsafe backups. In-app restore to the live workspace remains unavailable.
+- Seven SQLite tests exercise the actual account deletion eligibility query: empty sole-admin workspace accepted; other users, non-admins, team workspaces, cases and pending cleanup rejected.
+- Local account deletion screen returned 200; unsigned deletion returned 401; cross-site deletion returned 403. The saved server key was accepted by a read-only Supabase admin request. No real account was deleted, so successful provider deletion and failure/retry behaviour are not yet end-to-end verified.
+- Account closure retains only user ID, workspace ID, status and creation time as a retry/replay marker. No email or fieldwork is retained in this marker. All cases must be purged first. Team account removal is currently blocked.
+- File cleanup no longer clears unrelated local drafts.
+- CI now runs Python recovery and deletion tests as well as app tests and build checks.
+- Database migration journal includes both maintenance tables.

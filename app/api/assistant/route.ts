@@ -85,7 +85,7 @@ export async function POST(req: Request) {
       since = new Date(Date.now() - 3600000).toISOString();
     const reservation = await db
       .prepare(
-        'INSERT INTO assistant_runs (id,workspaceId,actor,caseId,mode,sourceIds,tokens,createdAt) SELECT ?,?,?,?,?,?,?,? WHERE (SELECT COUNT(*) FROM assistant_runs WHERE actor = ? AND createdAt > ?) < 20',
+        'INSERT INTO assistant_runs (id,workspaceId,actor,caseId,mode,sourceIds,tokens,createdAt) SELECT ?,?,?,?,?,?,?,? WHERE (SELECT COUNT(*) FROM assistant_runs WHERE actor = ? AND createdAt > ?) < 20 AND (SELECT COUNT(*) FROM assistant_runs WHERE workspaceId = ? AND createdAt > ?) < 60 AND (SELECT COUNT(*) FROM assistant_runs WHERE createdAt > ?) < 200',
       )
       .bind(
         id,
@@ -97,6 +97,9 @@ export async function POST(req: Request) {
         0,
         now,
         m.userId,
+        since,
+        m.workspaceId,
+        since,
         since,
       )
       .run();

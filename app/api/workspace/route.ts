@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { invitationCutoff } from '@/lib/invitation';
 import { handle, identity, database, jsonBody, reply, guardOrigin, ApiError } from '@/lib/server';
 export async function GET() {
   return handle(async () => {
@@ -7,8 +8,8 @@ export async function GET() {
     return reply(
       (
         await database()
-          .prepare('SELECT id,email,role,createdAt FROM invitations WHERE workspaceId = ?')
-          .bind(m.workspaceId)
+          .prepare('SELECT id,email,role,createdAt FROM invitations WHERE workspaceId = ? AND createdAt > ?')
+          .bind(m.workspaceId, invitationCutoff())
           .all()
       ).results,
     );
@@ -43,6 +44,8 @@ export async function POST(req: Request) {
         .run();
     if (p.action === 'invite') {
       const email = p.email.toLowerCase();
+      await db.prepare('DELETE FROM invitations WHERE email = ? AND createdAt <= ?')
+        .bind(email, invitationCutoff()).run();
       const exists = await db
         .prepare('SELECT userId FROM members WHERE email = ?')
         .bind(email)
@@ -56,7 +59,7 @@ export async function POST(req: Request) {
         throw new ApiError(409, 'This account already has a pending invitation.');
       await db
         .prepare(
-          'INSERT INTO invitations (id,workspaceId,email,role,createdAt) VALUES (?,?,?,?,?) ON CONFLICT(email) DO UPDATE SET role = excluded.role',
+          'INSERT INTO invitations (id,workspaceId,email,role,createdAt) VALUES (?,?,?,?,?) ON CONFLICT(email) DO UPDATE SET role = excluded.role, createdAt = excluded.createdAt',
         )
         .bind(crypto.randomUUID(), m.workspaceId, email, p.role, new Date().toISOString())
         .run();

@@ -51,3 +51,6 @@ next-env.d.ts
 *.tsbuildinfo
 /FieldProof-source.zip
 /FieldProof-*.png
+/docs/evidence/github-authenticated-workspace.png
+__pycache__/
+*.pyc

@@ -285,7 +285,7 @@ export default function FieldProof() {
                   Sign in to create your workspace, record property visits and keep the evidence
                   together—even when connectivity drops.
                 </p>
-                <a className="primary" href="/signin-with-chatgpt?return_to=/" target="_top">
+                <a className="primary" href="/signin" target="_top">
                   Open your workspace <ArrowUpRight size={18} />
                 </a>
                 <small>Private records · Recoverable fieldwork · Sourced guidance</small>

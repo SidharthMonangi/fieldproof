@@ -2,6 +2,10 @@
 // Add Drizzle tables here when the site actually needs a database.
 // See examples/d1/db/schema.ts for an opt-in example.
 import { sqliteTable, text, integer, index, uniqueIndex } from 'drizzle-orm/sqlite-core';
+export const fileCleanup = sqliteTable('file_cleanup', {
+  id: text().primaryKey(), workspaceId: text().notNull(),
+  objectKeys: text().notNull(), createdAt: text().notNull(),
+}, table => [index('idx_file_cleanup_workspace').on(table.workspaceId)]);
 export const workspaces = sqliteTable('workspaces', {
   id: text().primaryKey(),
   name: text().notNull(),
@@ -144,3 +148,9 @@ export const assistantRuns = sqliteTable(
   },
   (t) => [index('idx_assistant_actor_time').on(t.actor, t.createdAt)],
 );
+export const accountClosures = sqliteTable('account_closures', {
+  userId: text().primaryKey(),
+  workspaceId: text().notNull(),
+  status: text().notNull(),
+  createdAt: text().notNull(),
+}, t => [uniqueIndex('idx_account_closure_workspace').on(t.workspaceId)]);
