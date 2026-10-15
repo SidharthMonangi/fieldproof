@@ -334,6 +334,7 @@ export default function FieldProof() {
             />
           ) : view === 'workspace' ? (
             <WorkspacePane
+              key={b.workspace.id}
               b={b}
               online={app.online && !app.paused}
               hasPending={app.queue.length > 0}
