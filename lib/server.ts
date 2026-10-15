@@ -29,6 +29,10 @@ export function bucket() {
 export async function identity(): Promise<Member> {
   const auth = await authClient();
   // Configured public authentication never falls back to hosting identity headers.
+  // Without it, hosting headers are trusted only when the deployment opts in, so a
+  // missing Supabase secret fails closed instead of accepting client-supplied headers.
+  if (!auth && env.HOSTING_IDENTITY !== 'trusted')
+    throw new ApiError(503, 'Sign-in is not configured for this deployment.');
   const verified = auth ? await auth.auth.getUser() : null;
   const user = verified?.error ? null : verified?.data.user;
   const u = auth

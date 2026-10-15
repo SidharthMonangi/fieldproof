@@ -43,7 +43,7 @@ The provided Sites manifest belongs to the original hosted project. Forks must u
 - `npm test` — 24 domain, provider, source and backup tests.
 - `python -m unittest discover -s tests -p 'test_*.py'` — 13 isolated recovery and account-deletion eligibility tests.
 - `npm run typecheck` and `npm run build`.
-- `node tests/maintenance.integration.mjs` — 37 local maintenance checks, including restoration, role boundaries, checksum rejection and retry deduplication. This requires an isolated loopback Worker with fictional trusted-header identities, never public authentication bypasses.
+- `node tests/maintenance.integration.mjs` — 37 local maintenance checks, including restoration, role boundaries, checksum rejection and retry deduplication. This requires an isolated loopback Worker with fictional trusted-header identities, never public authentication bypasses. Leave the Supabase variables empty and set `HOSTING_IDENTITY=trusted` in that Worker's `.dev.vars` only; without either Supabase or this opt-in, every API request fails closed with 503.
 - `tests/hosted.integration.mjs` is an explicit opt-in destructive test limited to freshly created disposable accounts. It requires a private local admin key and deletes only its own test workspaces and accounts. Do not put that key into CI.
 
 GitHub sign-in, hosted sessions, generated cited answers, official source fetching, account separation, PDF storage, backup checksums and disposable account deletion were verified on the deployed origin. See the release evidence for the exact scope and remaining browser checks.

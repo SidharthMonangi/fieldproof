@@ -4,6 +4,7 @@ declare namespace Cloudflare {
     SUPABASE_URL?: string;
     SUPABASE_PUBLISHABLE_KEY?: string;
     SUPABASE_SECRET_KEY?: string;
+    HOSTING_IDENTITY?: string;
     DB?: D1Database;
     BUCKET?: R2Bucket;
     OPENAI_API_KEY?: string;
