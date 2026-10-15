@@ -25,7 +25,11 @@ export async function applyOperation(
   const op = opSchema.parse(raw);
   const db = database();
   const now = new Date().toISOString();
-  const digest = await hash(JSON.stringify(op) + (attachment ? await hash(attachment.bytes) : ''));
+  const bytesHash = attachment ? await hash(attachment.bytes) : '';
+  const digest = await hash(JSON.stringify(op) + bytesHash);
+  // Content-addressed: concurrent requests reusing one operation ID with different
+  // bytes write different objects, so committed evidence always matches its hash.
+  const objectKey = member.workspaceId + '/' + op.caseId + '/' + op.id + '-' + bytesHash;
   const prior = await db
     .prepare('SELECT * FROM mutations WHERE id = ?')
     .bind(op.id)
@@ -162,7 +166,6 @@ export async function applyOperation(
       throw new ApiError(429, 'Upload limit reached for this hour. Your attachment is still on this device.');
     if ((usage?.stored ?? 0) + attachment.bytes.byteLength > MAX_WORKSPACE_BYTES)
       throw new ApiError(413, 'This workspace has reached its attachment storage limit.');
-    const objectKey = member.workspaceId + '/' + op.caseId + '/' + op.id;
     await bucket().put(objectKey, attachment.bytes, {
       httpMetadata: { contentType: attachment.mime },
     });
@@ -233,8 +236,8 @@ export async function applyOperation(
           attachment.kind,
           attachment.mime,
           attachment.bytes.byteLength,
-          member.workspaceId + '/' + op.caseId + '/' + op.id,
-          await hash(attachment.bytes),
+          objectKey,
+          bytesHash,
           now,
           op.caseId,
           op.id,
