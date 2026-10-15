@@ -6,13 +6,13 @@ FieldProof connects field collection with evidence review. It is a working portf
 
 The React interface runs in the browser. Vinext routes run as a Cloudflare Worker. Cloudflare D1 stores structured records and R2 stores attachment bytes. Sites dispatch authenticates the browser and forwards the user's site-specific identity; the application resolves workspace membership and checks authorisation on every API operation.
 
-The first sign-in creates a personal workspace and administrator membership. An administrator can pre-register an officer or reviewer email; a new account with that email joins the invited workspace at sign-in. One account belongs to one workspace. Site audience settings are a separate boundary: the initial deployment is private, so invitations do not override site-level access.
+The first sign-in always creates a personal workspace and administrator membership. An administrator can register an officer or reviewer email; the account with that email sees the invitation on its Workspace page and joins only by accepting it. Acceptance is allowed only while the invitee's personal workspace has no cases and no other members; that workspace and its handbook entries are then removed. Invitations never move an account automatically, so registering someone else's email cannot capture their records. One account belongs to one workspace. Site audience settings are a separate boundary: the initial deployment is private, so invitations do not override site-level access.
 
 ## Authoritative and device state
 
 The database owns accepted records. IndexedDB stores a per-user, per-workspace snapshot, form drafts, pending operations and attachment blobs. Browser storage is not the authoritative record. The interface overlays pending operations and labels unconfirmed changes as on-device. Syncing requires a fresh authenticated server read; cached identity alone cannot send mutations.
 
-The service worker caches the application shell and same-origin static assets, never API responses or authentication routes. Offline data comes from IndexedDB. The user must first open the app while connected. Browser storage can be evicted, is not encrypted by the application and is unsuitable for unprotected shared devices. Device backups include unsent file bytes.
+The service worker caches the application shell and same-origin static assets, never API responses or authentication routes. Offline data comes from IndexedDB. The user must first open the app while connected. Browser storage can be evicted, is not encrypted by the application and is unsuitable for unprotected shared devices. Sign-out, which is only available once nothing is pending, removes that user's snapshot, drafts and queue from the device. Device backups include unsent file bytes.
 
 ## A mutation's lifecycle
 

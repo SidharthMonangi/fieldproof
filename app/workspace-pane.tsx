@@ -12,7 +12,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
 import { Field, Picker } from './forms';
-import { clearDevice, forgetActive } from '@/lib/device';
+import { clearDevice, clearScope, forgetActive, scopeOf } from '@/lib/device';
 import type { Bootstrap } from '@/lib/domain';
 export function WorkspacePane({
   b,
@@ -76,7 +76,18 @@ export function WorkspacePane({
     if (r.ok) setInvites(await r.json());
   };
   useEffect(() => {
-    void load();
+    if (b.user.role !== 'admin') return;
+    // Ignore a response that arrives after the role, workspace or connection changed.
+    let active = true;
+    fetch('/api/workspace')
+      .then(async (r) => {
+        const rows = r.ok ? ((await r.json()) as typeof invites) : null;
+        if (active && rows) setInvites(rows);
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
   }, [b.user.role, online]);
   const action = async (payload: unknown) => {
     setBusy(true);
@@ -158,8 +169,58 @@ export function WorkspacePane({
       setBusy(false);
     }
   };
+  const acceptInvitation = async (id: string) => {
+    setBusy(true);
+    try {
+      const r = await fetch('/api/workspace', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'accept', id }),
+      });
+      const d = (await r.json()) as { error?: string };
+      if (!r.ok) throw new Error(d.error);
+      // The personal workspace was removed; drop its cached copy from this device.
+      await clearScope(scopeOf(b));
+      await onRefresh();
+      toast.success('You joined the workspace.');
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+  const invitation = b.invitation;
   return (
     <>
+      {invitation && (
+        <section className="panel" aria-label="Pending invitation">
+          <h2>
+            <UserPlus size={18} />
+            Invitation to {invitation.workspaceName}
+          </h2>
+          <p className="subtle">
+            You were invited to join as {invitation.role === 'reviewer' ? 'a reviewer' : 'a field officer'}.
+            Joining removes your personal workspace and its handbook entries; it is only possible
+            while that workspace has no cases. Accept only if you know who sent it.
+          </p>
+          <div className="actions">
+            <button
+              className="primary"
+              disabled={!online || busy || hasPending}
+              onClick={() => void acceptInvitation(invitation.id)}
+            >
+              Accept and join
+            </button>
+            <button
+              className="secondary"
+              disabled={!online || busy}
+              onClick={() => void action({ action: 'decline', id: invitation.id })}
+            >
+              Decline
+            </button>
+          </div>
+        </section>
+      )}
       <div className="eyebrow">YOUR TEAM, YOUR WORKSPACE</div>
       <div className="page-heading">
         <div>
@@ -243,7 +304,8 @@ export function WorkspacePane({
               <p className="subtle">
                 Register their sign-in email and role. Give them the site link through your
                 preferred channel once site sharing is enabled. Invitations expire after seven days;
-                registering again renews them. No invitation email is sent.
+                registering again renews them. No invitation email is sent. They join only after
+                signing in and accepting the invitation in their own Workspace page.
               </p>
               <form
                 className="form-grid"
@@ -279,7 +341,7 @@ export function WorkspacePane({
                 <div className="invite-row" key={i.id}>
                   <div>
                     <strong>{i.email}</strong>
-                    <small>{i.role} · pending sign-in</small>
+                    <small>{i.role} · awaiting acceptance</small>
                   </div>
                   <button
                     className="icon-button"
@@ -326,6 +388,8 @@ export function WorkspacePane({
                       return;
                     }
                     const result = (await response.json()) as { next: string };
+                    // Do not leave applicant records or attachments on a shared device.
+                    await clearScope(scopeOf(b));
                     await forgetActive();
                     location.assign(result.next);
                   })().catch(() => toast.error('Connect to the internet to sign out.'));

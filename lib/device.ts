@@ -87,6 +87,32 @@ export async function saveDraft(scope: string, key: string, value: unknown) {
 export async function deleteDraft(scope: string, key: string) {
   await transaction('state', 'readwrite', (s) => s.delete('draft:' + scope + ':' + key));
 }
+// Removes one user's snapshot, drafts and queued work, leaving other accounts on
+// this device untouched. Sign-out is only offered once the queue is empty.
+export async function clearScope(scope: string) {
+  const db = await open();
+  await new Promise<void>((resolve, reject) => {
+    const t = db.transaction(['state', 'queue'], 'readwrite');
+    const state = t.objectStore('state').openCursor();
+    state.onsuccess = () => {
+      const cursor = state.result;
+      if (!cursor) return;
+      const key = String(cursor.key);
+      if (key === 'snapshot:' + scope || key.startsWith('draft:' + scope + ':')) cursor.delete();
+      cursor.continue();
+    };
+    const queue = t.objectStore('queue').openCursor();
+    queue.onsuccess = () => {
+      const cursor = queue.result;
+      if (!cursor) return;
+      if ((cursor.value as QueuedOperation).scope === scope) cursor.delete();
+      cursor.continue();
+    };
+    t.oncomplete = () => resolve();
+    t.onerror = () => reject(t.error);
+  });
+  db.close();
+}
 export async function clearDevice() {
   const db = await open();
   await new Promise<void>((resolve, reject) => {

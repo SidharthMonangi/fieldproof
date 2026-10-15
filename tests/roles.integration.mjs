@@ -6,7 +6,7 @@ async function call(id,path,body){const r=await fetch(base+path,{method:body?'PO
 function check(actual,expected){assert.equal(actual,expected);count++;}
 const admin='admin-'+suffix,officer='officer-'+suffix,reviewer='reviewer-'+suffix,outsider='outside-'+suffix;
 const a=await call(admin,'/api/bootstrap');check(a.status,200);
-for(const [id,role] of [[officer,'officer'],[reviewer,'reviewer']]){check((await call(admin,'/api/workspace',{action:'invite',email:id+'@example.test',role})).status,200);const b=await call(id,'/api/bootstrap');check(b.data.user.role,role);check(b.data.user.workspaceId,a.data.user.workspaceId);}
+for(const [id,role] of [[officer,'officer'],[reviewer,'reviewer']]){check((await call(admin,'/api/workspace',{action:'invite',email:id+'@example.test',role})).status,200);const p=await call(id,'/api/bootstrap');check((await call(id,'/api/workspace',{action:'accept',id:p.data.invitation.id})).status,200);const b=await call(id,'/api/bootstrap');check(b.data.user.role,role);check(b.data.user.workspaceId,a.data.user.workspaceId);}
 check((await call(officer,'/api/sources',{})).status,403);check((await call(reviewer,'/api/sources',{})).status,403);
 check((await call(officer,'/api/workspace',{action:'rename',name:'Unauthorized'})).status,403);
 const outside=await call(outsider,'/api/bootstrap');assert.notEqual(outside.data.user.workspaceId,a.data.user.workspaceId);count++;

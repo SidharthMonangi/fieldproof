@@ -1,12 +1,11 @@
 import { z } from 'zod';
-import { ApiError, database, getCase, guardOrigin, handle, identity, jsonBody, reply } from '@/lib/server';
+import { ApiError, authorizeAdmin, database, getCase, guardOrigin, handle, jsonBody, reply } from '@/lib/server';
 import { cleanupFiles } from '@/lib/file-cleanup';
 export async function POST(req: Request) {
   return handle(async () => {
     guardOrigin(req);
+    const user = await authorizeAdmin(req);
     const body = await jsonBody(req);
-    const user = await identity();
-    if (user.role !== 'admin') throw new ApiError(403, 'Administrator access required.');
     const payload = z.discriminatedUnion('action', [
       z.object({action: z.literal('cleanup')}),
       z.object({action: z.literal('purge'),caseId:z.string().uuid(),version:z.number().int().positive(),confirmation:z.string()}),

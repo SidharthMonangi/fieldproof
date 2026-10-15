@@ -4,7 +4,7 @@ Housing fieldwork with recoverable offline drafts, evidence review and a source-
 
 **[Open the live app](https://fieldproof-vercel.vercel.app)** · [Two-minute walkthrough](docs/RECRUITER-WALKTHROUGH.md) · [Architecture](docs/ARCHITECTURE.md) · [Verification evidence](docs/RELEASE-CHECKS.md)
 
-Sign in with GitHub. Each new account receives a private workspace unless its email has a pending team invitation. Use the clearly labelled fictional starter cases to explore the workflow.
+Sign in with GitHub. Each new account receives a private workspace. A pending team invitation is shown on the Workspace page and is joined only if the invitee accepts it while their own workspace is still empty. Use the clearly labelled fictional starter cases to explore the workflow.
 
 ## What the application does
 
@@ -43,7 +43,7 @@ The provided Sites manifest belongs to the original hosted project. Forks must u
 - `npm test` — 24 domain, provider, source and backup tests.
 - `python -m unittest discover -s tests -p 'test_*.py'` — 13 isolated recovery and account-deletion eligibility tests.
 - `npm run typecheck` and `npm run build`.
-- `node tests/maintenance.integration.mjs` — 37 local maintenance checks, including restoration, role boundaries, checksum rejection and retry deduplication. This requires an isolated loopback Worker with fictional trusted-header identities, never public authentication bypasses.
+- `node tests/maintenance.integration.mjs` — 37 local maintenance checks, including restoration, role boundaries, checksum rejection and retry deduplication. This requires an isolated loopback Worker with fictional trusted-header identities, never public authentication bypasses. Leave the Supabase variables empty and set `HOSTING_IDENTITY=trusted` in that Worker's `.dev.vars` only; without either Supabase or this opt-in, every API request fails closed with 503.
 - `tests/hosted.integration.mjs` is an explicit opt-in destructive test limited to freshly created disposable accounts. It requires a private local admin key and deletes only its own test workspaces and accounts. Do not put that key into CI.
 
 GitHub sign-in, hosted sessions, generated cited answers, official source fetching, account separation, PDF storage, backup checksums and disposable account deletion were verified on the deployed origin. See the release evidence for the exact scope and remaining browser checks.
@@ -51,6 +51,8 @@ GitHub sign-in, hosted sessions, generated cited answers, official source fetchi
 ## Recovery bounds
 
 In-app imports accept at most 20 cases, 50 visits, 100 history entries, 40 attachments, 40 guidance entries and 10 MB of attachment bytes within a 16 MB request. Export supports up to 25 MB of attachments. Larger backups can be validated into a new isolated SQLite/object folder with `python scripts/restore-backup.py backup.json new-recovery-folder`.
+
+Set the server secret `BACKUP_SIGNING_KEY` to sign exports with HMAC-SHA256; in-app restore then rejects unsigned backups and any backup edited after export, even when its SHA-256 checksums were recomputed. Without the key, checksums detect corruption but not deliberate edits.
 
 Restored records receive new IDs and are assigned to the restoring administrator. Current records remain unchanged. Imported guidance is labelled sample material. If restoration is interrupted, unused objects are tracked for cleanup; an active restore is protected from manual cleanup for ten minutes. A stable restore request ID prevents retry duplicates.
 

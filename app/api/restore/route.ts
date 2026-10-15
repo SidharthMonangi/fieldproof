@@ -1,26 +1,27 @@
 import {
   ApiError,
+  authorizeAdmin,
   bucket,
   database,
   guardOrigin,
   handle,
   hash,
-  identity,
   jsonBody,
   reply,
 } from '@/lib/server';
 import { z } from 'zod';
-import { validateBackup, recoveryRows } from '@/lib/backup';
+import { validateBackup, recoveryRows, hasValidSignature } from '@/lib/backup';
+import { env } from 'cloudflare:workers';
 import { cleanupFiles } from '@/lib/file-cleanup';
 export async function POST(req: Request) {
   return handle(async () => {
     guardOrigin(req);
+    // Authorize before reading up to 16 MB of request body.
+    const user = await authorizeAdmin(req);
     const body = z
       .object({ id: z.string().uuid(), confirmation: z.string(), backup: z.unknown() })
       .strict()
       .parse(await jsonBody(req, 16 * 1024 * 1024));
-    const user = await identity();
-    if (user.role !== 'admin') throw new ApiError(403, 'Administrator access required.');
     if (body.confirmation !== 'RESTORE AS DRAFTS')
       throw new ApiError(400, 'Type RESTORE AS DRAFTS to confirm.');
     const db = database(),
@@ -45,6 +46,13 @@ export async function POST(req: Request) {
           : 'The backup is invalid or exceeds the in-app recovery limits.',
       );
     }
+    // With a signing key configured, only unmodified exports from this deployment restore.
+    const key = env.BACKUP_SIGNING_KEY;
+    if (key && !(await hasValidSignature(key, validated.backup)))
+      throw new ApiError(
+        400,
+        'This backup was not signed by this deployment or was changed after export.',
+      );
     const rows = recoveryRows(validated.backup, user.workspaceId, user.userId),
       job = body.id;
     const existing = await db

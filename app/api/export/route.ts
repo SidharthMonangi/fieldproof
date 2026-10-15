@@ -1,4 +1,6 @@
+import { env } from 'cloudflare:workers';
 import { ApiError, bucket, database, handle, hash, identity, reply } from '@/lib/server';
+import { signBackup } from '@/lib/backup';
 
 export async function GET() {
   return handle(async () => {
@@ -31,7 +33,9 @@ export async function GET() {
         binary += String.fromCharCode(...array.subarray(offset, offset + 8192));
       attachments.push({ id: file.id, sha256: file.sha256, base64: btoa(binary) });
     }
-    const response = reply({ format: 'fieldproof-workspace-export-v1', exportedAt: new Date().toISOString(), records, attachments });
+    const backup = { format: 'fieldproof-workspace-export-v1', exportedAt: new Date().toISOString(), records, attachments };
+    const key = env.BACKUP_SIGNING_KEY;
+    const response = reply(key ? { ...backup, signature: await signBackup(key, backup) } : backup);
     response.headers.set('Content-Disposition', 'attachment; filename="fieldproof-workspace-backup.json"');
     return response;
   });

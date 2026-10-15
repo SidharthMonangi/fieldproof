@@ -103,6 +103,8 @@ export type Bootstrap = {
   visits: VisitRecord[];
   files: FileRecord[];
   audit: AuditRecord[];
+  // A pending invitation to another workspace; joining requires explicit acceptance.
+  invitation?: { id: string; role: Role; workspaceName: string; createdAt: string } | null;
   aiEnabled: boolean;
 };
 export const opSchema = z.object({
