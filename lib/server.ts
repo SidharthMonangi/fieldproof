@@ -79,6 +79,18 @@ export async function identity(): Promise<Member> {
   if (!m) throw new ApiError(503, 'Workspace setup did not finish.');
   return m;
 }
+// Checks the caller before the body is parsed. A rejected request's body is drained
+// (not parsed) because leaving it unread breaks the connection for the next request.
+export async function authorizeAdmin(req: Request) {
+  try {
+    const user = await identity();
+    if (user.role !== 'admin') throw new ApiError(403, 'Administrator access required.');
+    return user;
+  } catch (e) {
+    await req.arrayBuffer().catch(() => {});
+    throw e;
+  }
+}
 export function parseCase(row: Record<string, unknown>): CaseRecord {
   return { ...row, data: JSON.parse(row.data as string) } as CaseRecord;
 }

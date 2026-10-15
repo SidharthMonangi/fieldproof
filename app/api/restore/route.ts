@@ -1,11 +1,11 @@
 import {
   ApiError,
+  authorizeAdmin,
   bucket,
   database,
   guardOrigin,
   handle,
   hash,
-  identity,
   jsonBody,
   reply,
 } from '@/lib/server';
@@ -16,8 +16,7 @@ export async function POST(req: Request) {
   return handle(async () => {
     guardOrigin(req);
     // Authorize before reading up to 16 MB of request body.
-    const user = await identity();
-    if (user.role !== 'admin') throw new ApiError(403, 'Administrator access required.');
+    const user = await authorizeAdmin(req);
     const body = z
       .object({ id: z.string().uuid(), confirmation: z.string(), backup: z.unknown() })
       .strict()
