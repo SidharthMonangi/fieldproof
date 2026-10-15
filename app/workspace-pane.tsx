@@ -12,7 +12,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
 import { Field, Picker } from './forms';
-import { clearDevice, forgetActive } from '@/lib/device';
+import { clearDevice, clearScope, forgetActive, scopeOf } from '@/lib/device';
 import type { Bootstrap } from '@/lib/domain';
 export function WorkspacePane({
   b,
@@ -326,6 +326,8 @@ export function WorkspacePane({
                       return;
                     }
                     const result = (await response.json()) as { next: string };
+                    // Do not leave applicant records or attachments on a shared device.
+                    await clearScope(scopeOf(b));
                     await forgetActive();
                     location.assign(result.next);
                   })().catch(() => toast.error('Connect to the internet to sign out.'));

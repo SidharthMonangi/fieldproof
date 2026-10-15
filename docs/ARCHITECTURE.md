@@ -12,7 +12,7 @@ The first sign-in creates a personal workspace and administrator membership. An 
 
 The database owns accepted records. IndexedDB stores a per-user, per-workspace snapshot, form drafts, pending operations and attachment blobs. Browser storage is not the authoritative record. The interface overlays pending operations and labels unconfirmed changes as on-device. Syncing requires a fresh authenticated server read; cached identity alone cannot send mutations.
 
-The service worker caches the application shell and same-origin static assets, never API responses or authentication routes. Offline data comes from IndexedDB. The user must first open the app while connected. Browser storage can be evicted, is not encrypted by the application and is unsuitable for unprotected shared devices. Device backups include unsent file bytes.
+The service worker caches the application shell and same-origin static assets, never API responses or authentication routes. Offline data comes from IndexedDB. The user must first open the app while connected. Browser storage can be evicted, is not encrypted by the application and is unsuitable for unprotected shared devices. Sign-out, which is only available once nothing is pending, removes that user's snapshot, drafts and queue from the device. Device backups include unsent file bytes.
 
 ## A mutation's lifecycle
 
