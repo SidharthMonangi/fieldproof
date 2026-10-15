@@ -13,6 +13,10 @@ import {
   type FileRecord,
 } from './domain';
 import { database, bucket, getCase, hash, ApiError } from './server';
+// Bounds storage cost and abuse from any self-registered account.
+const MAX_WORKSPACE_CASES = 1000;
+const MAX_UPLOADS_PER_HOUR = 60;
+const MAX_WORKSPACE_BYTES = 500 * 1024 * 1024;
 export async function applyOperation(
   raw: unknown,
   member: Member,
@@ -53,6 +57,12 @@ export async function applyOperation(
     if (op.baseVersion !== 0) throw new ApiError(400, 'New cases start at version zero.');
     const existing = await db.prepare('SELECT id FROM cases WHERE id = ?').bind(op.caseId).first();
     if (existing) throw new ApiError(409, 'This case already exists.');
+    const count = await db
+      .prepare('SELECT COUNT(*) AS n FROM cases WHERE workspaceId = ?')
+      .bind(member.workspaceId)
+      .first<{ n: number }>();
+    if ((count?.n ?? 0) >= MAX_WORKSPACE_CASES)
+      throw new ApiError(409, 'Workspace case limit reached. Archive and delete old cases first.');
     data = caseDataSchema.parse(op.payload);
     detail = 'Case created';
   } else {
@@ -142,6 +152,16 @@ export async function applyOperation(
     if (!valid) throw new ApiError(415, 'Use a valid PDF, JPEG, PNG or WebP file.');
     if (attachment.kind === 'photo' && !attachment.mime.startsWith('image/'))
       throw new ApiError(400, 'Property photographs must be image files.');
+    const usage = await db
+      .prepare(
+        'SELECT (SELECT COUNT(*) FROM files WHERE actor = ? AND createdAt > ?) AS recent, (SELECT COALESCE(SUM(f.size), 0) FROM files f JOIN cases c ON c.id = f.caseId WHERE c.workspaceId = ?) AS stored',
+      )
+      .bind(member.userId, new Date(Date.now() - 3600000).toISOString(), member.workspaceId)
+      .first<{ recent: number; stored: number }>();
+    if ((usage?.recent ?? 0) >= MAX_UPLOADS_PER_HOUR)
+      throw new ApiError(429, 'Upload limit reached for this hour. Your attachment is still on this device.');
+    if ((usage?.stored ?? 0) + attachment.bytes.byteLength > MAX_WORKSPACE_BYTES)
+      throw new ApiError(413, 'This workspace has reached its attachment storage limit.');
     const objectKey = member.workspaceId + '/' + op.caseId + '/' + op.id;
     await bucket().put(objectKey, attachment.bytes, {
       httpMetadata: { contentType: attachment.mime },

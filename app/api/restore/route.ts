@@ -15,12 +15,13 @@ import { cleanupFiles } from '@/lib/file-cleanup';
 export async function POST(req: Request) {
   return handle(async () => {
     guardOrigin(req);
+    // Authorize before reading up to 16 MB of request body.
+    const user = await identity();
+    if (user.role !== 'admin') throw new ApiError(403, 'Administrator access required.');
     const body = z
       .object({ id: z.string().uuid(), confirmation: z.string(), backup: z.unknown() })
       .strict()
       .parse(await jsonBody(req, 16 * 1024 * 1024));
-    const user = await identity();
-    if (user.role !== 'admin') throw new ApiError(403, 'Administrator access required.');
     if (body.confirmation !== 'RESTORE AS DRAFTS')
       throw new ApiError(400, 'Type RESTORE AS DRAFTS to confirm.');
     const db = database(),

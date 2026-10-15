@@ -4,9 +4,9 @@ import { cleanupFiles } from '@/lib/file-cleanup';
 export async function POST(req: Request) {
   return handle(async () => {
     guardOrigin(req);
-    const body = await jsonBody(req);
     const user = await identity();
     if (user.role !== 'admin') throw new ApiError(403, 'Administrator access required.');
+    const body = await jsonBody(req);
     const payload = z.discriminatedUnion('action', [
       z.object({action: z.literal('cleanup')}),
       z.object({action: z.literal('purge'),caseId:z.string().uuid(),version:z.number().int().positive(),confirmation:z.string()}),
