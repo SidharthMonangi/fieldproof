@@ -16,6 +16,15 @@ type Answer = {
   items?: ChecklistItem[];
   escalate: boolean;
 };
+// Returns the workspace handbook, or null when it cannot be loaded.
+async function fetchArticles(): Promise<Article[] | null> {
+  try {
+    const r = await fetch('/api/knowledge');
+    return r.ok ? ((await r.json()) as Article[]) : null;
+  } catch {
+    return null;
+  }
+}
 export function KnowledgePane({
   b,
   caseId,
@@ -44,19 +53,20 @@ export function KnowledgePane({
     [source, setSource] = useState<Article>(),
     [saving, setSaving] = useState(false),
     [loadError, setLoadError] = useState('');
-  const load = async () => {
-    try {
-      const r = await fetch('/api/knowledge');
-      const d = (await r.json()) as Answer & Article[] & { error?: string };
-      if (!r.ok) throw new Error(d.error);
-      setArticles(d);
-      setLoadError('');
-    } catch {
-      setLoadError('Connect to load the workspace handbook.');
-    }
+  const show = (result: Article[] | null) => {
+    if (result) setArticles(result);
+    setLoadError(result ? '' : 'Connect to load the workspace handbook.');
   };
+  const load = async () => show(await fetchArticles());
   useEffect(() => {
-    void load();
+    // Ignore a response that arrives after the workspace or connection changed.
+    let active = true;
+    void fetchArticles().then((result) => {
+      if (active) show(result);
+    });
+    return () => {
+      active = false;
+    };
   }, [b.user.workspaceId, online]);
   const ask = async (q: string) => {
     setQuestion(q);

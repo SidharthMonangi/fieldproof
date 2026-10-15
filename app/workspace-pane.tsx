@@ -76,7 +76,18 @@ export function WorkspacePane({
     if (r.ok) setInvites(await r.json());
   };
   useEffect(() => {
-    void load();
+    if (b.user.role !== 'admin') return;
+    // Ignore a response that arrives after the role, workspace or connection changed.
+    let active = true;
+    fetch('/api/workspace')
+      .then(async (r) => {
+        const rows = r.ok ? ((await r.json()) as typeof invites) : null;
+        if (active && rows) setInvites(rows);
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
   }, [b.user.role, online]);
   const action = async (payload: unknown) => {
     setBusy(true);
