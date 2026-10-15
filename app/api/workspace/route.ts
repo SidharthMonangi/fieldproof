@@ -50,13 +50,15 @@ export async function POST(req: Request) {
         .prepare('SELECT userId FROM members WHERE email = ?')
         .bind(email)
         .first();
-      if (exists) throw new ApiError(409, 'This account already belongs to a workspace.');
+      // One message for both cases so invitations do not reveal which emails are
+      // registered or invited elsewhere.
+      const unavailable = 'This email cannot be invited. Ask the person to contact you.';
+      if (exists) throw new ApiError(409, unavailable);
       const prior = await db
         .prepare('SELECT workspaceId FROM invitations WHERE email = ?')
         .bind(email)
         .first<{ workspaceId: string }>();
-      if (prior && prior.workspaceId !== m.workspaceId)
-        throw new ApiError(409, 'This account already has a pending invitation.');
+      if (prior && prior.workspaceId !== m.workspaceId) throw new ApiError(409, unavailable);
       await db
         .prepare(
           'INSERT INTO invitations (id,workspaceId,email,role,createdAt) VALUES (?,?,?,?,?) ON CONFLICT(email) DO UPDATE SET role = excluded.role, createdAt = excluded.createdAt',
