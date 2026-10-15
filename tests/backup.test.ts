@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { validateBackup, recoveryRows } from '../lib/backup.ts';
+import { validateBackup, recoveryRows, signBackup, hasValidSignature } from '../lib/backup.ts';
 function fixture() {
   const workspaceId = crypto.randomUUID(),
     userId = crypto.randomUUID(),
@@ -149,4 +149,20 @@ test('attachment type mismatches are rejected even when checksums match', async 
   const raw = await fixture();
   raw.records.files[0].mime = 'image/png';
   await assert.rejects(validateBackup(raw), /Unsupported/);
+});
+test('signed backups verify after parsing and regardless of property order', async () => {
+  const raw = await fixture();
+  const signed = { ...raw, signature: await signBackup('test-signing-key', raw) };
+  const reordered = JSON.parse(JSON.stringify({ attachments: signed.attachments, signature: signed.signature, records: signed.records, exportedAt: signed.exportedAt, format: signed.format }));
+  const { backup } = await validateBackup(reordered);
+  assert.equal(await hasValidSignature('test-signing-key', backup), true);
+});
+test('edited, unsigned or differently keyed backups fail the signature check', async () => {
+  const raw = await fixture();
+  const signed = { ...raw, signature: await signBackup('test-signing-key', raw) };
+  const edited = structuredClone(signed);
+  edited.records.cases[0].reviewNote = 'Changed after export';
+  assert.equal(await hasValidSignature('test-signing-key', (await validateBackup(edited)).backup), false);
+  assert.equal(await hasValidSignature('test-signing-key', (await validateBackup(raw)).backup), false);
+  assert.equal(await hasValidSignature('another-key', (await validateBackup(signed)).backup), false);
 });

@@ -52,6 +52,8 @@ GitHub sign-in, hosted sessions, generated cited answers, official source fetchi
 
 In-app imports accept at most 20 cases, 50 visits, 100 history entries, 40 attachments, 40 guidance entries and 10 MB of attachment bytes within a 16 MB request. Export supports up to 25 MB of attachments. Larger backups can be validated into a new isolated SQLite/object folder with `python scripts/restore-backup.py backup.json new-recovery-folder`.
 
+Set the server secret `BACKUP_SIGNING_KEY` to sign exports with HMAC-SHA256; in-app restore then rejects unsigned backups and any backup edited after export, even when its SHA-256 checksums were recomputed. Without the key, checksums detect corruption but not deliberate edits.
+
 Restored records receive new IDs and are assigned to the restoring administrator. Current records remain unchanged. Imported guidance is labelled sample material. If restoration is interrupted, unused objects are tracked for cleanup; an active restore is protected from manual cleanup for ten minutes. A stable restore request ID prevents retry duplicates.
 
 ## Monitoring and operational limits

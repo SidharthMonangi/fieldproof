@@ -120,8 +120,66 @@ const schema = z
           .strict(),
       )
       .max(40),
+    signature: z
+      .object({ alg: z.literal('HMAC-SHA256'), value: z.string().regex(/^[a-f0-9]{64}$/) })
+      .strict()
+      .optional(),
   })
   .strict();
+type Signable = {
+  format: string;
+  exportedAt: string;
+  records: unknown;
+  attachments: { id: string; sha256: string }[];
+};
+// Key-sorted JSON so the signature does not depend on property order in the file.
+function canonical(value: unknown): string {
+  if (Array.isArray(value)) return '[' + value.map(canonical).join(',') + ']';
+  if (value && typeof value === 'object')
+    return (
+      '{' +
+      Object.keys(value)
+        .sort()
+        .map((key) => JSON.stringify(key) + ':' + canonical((value as Record<string, unknown>)[key]))
+        .join(',') +
+      '}'
+    );
+  return JSON.stringify(value);
+}
+// Attachment bytes are bound by their SHA-256, so only the hashes are signed.
+async function hmac(key: string, backup: Signable) {
+  const text = canonical({
+    format: backup.format,
+    exportedAt: backup.exportedAt,
+    records: backup.records,
+    attachments: backup.attachments.map(({ id, sha256 }) => ({ id, sha256 })),
+  });
+  const secret = await crypto.subtle.importKey(
+    'raw',
+    new TextEncoder().encode(key),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign'],
+  );
+  const mac = await crypto.subtle.sign('HMAC', secret, new TextEncoder().encode(text));
+  return [...new Uint8Array(mac)].map((n) => n.toString(16).padStart(2, '0')).join('');
+}
+// SHA-256 checksums catch corruption; this keyed signature also catches deliberate edits.
+export async function signBackup(key: string, backup: Signable) {
+  return { alg: 'HMAC-SHA256' as const, value: await hmac(key, backup) };
+}
+export async function hasValidSignature(
+  key: string,
+  backup: Signable & { signature?: { value: string } },
+) {
+  if (!backup.signature) return false;
+  const expected = await hmac(key, backup),
+    actual = backup.signature.value;
+  let difference = expected.length ^ actual.length;
+  for (let i = 0; i < expected.length; i++)
+    difference |= expected.charCodeAt(i) ^ (actual.charCodeAt(i) || 0);
+  return difference === 0;
+}
 function unique(values: string[], name: string) {
   if (new Set(values).size !== values.length) throw new Error('Duplicated ' + name + '.');
 }

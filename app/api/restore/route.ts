@@ -10,7 +10,8 @@ import {
   reply,
 } from '@/lib/server';
 import { z } from 'zod';
-import { validateBackup, recoveryRows } from '@/lib/backup';
+import { validateBackup, recoveryRows, hasValidSignature } from '@/lib/backup';
+import { env } from 'cloudflare:workers';
 import { cleanupFiles } from '@/lib/file-cleanup';
 export async function POST(req: Request) {
   return handle(async () => {
@@ -45,6 +46,13 @@ export async function POST(req: Request) {
           : 'The backup is invalid or exceeds the in-app recovery limits.',
       );
     }
+    // With a signing key configured, only unmodified exports from this deployment restore.
+    const key = env.BACKUP_SIGNING_KEY;
+    if (key && !(await hasValidSignature(key, validated.backup)))
+      throw new ApiError(
+        400,
+        'This backup was not signed by this deployment or was changed after export.',
+      );
     const rows = recoveryRows(validated.backup, user.workspaceId, user.userId),
       job = body.id;
     const existing = await db
