@@ -4,7 +4,7 @@ Housing fieldwork with recoverable offline drafts, evidence review and a source-
 
 **[Open the live app](https://fieldproof-vercel.vercel.app)** · [Two-minute walkthrough](docs/RECRUITER-WALKTHROUGH.md) · [Architecture](docs/ARCHITECTURE.md) · [Verification evidence](docs/RELEASE-CHECKS.md)
 
-Sign in with GitHub. Each new account receives a private workspace unless its email has a pending team invitation. Use the clearly labelled fictional starter cases to explore the workflow.
+Sign in with GitHub. Each new account receives a private workspace. A pending team invitation is shown on the Workspace page and is joined only if the invitee accepts it while their own workspace is still empty. Use the clearly labelled fictional starter cases to explore the workflow.
 
 ## What the application does
 

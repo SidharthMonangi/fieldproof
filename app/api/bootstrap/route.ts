@@ -1,5 +1,6 @@
 import { env } from 'cloudflare:workers';
 import { database, identity, handle, reply, parseCase } from '@/lib/server';
+import { invitationCutoff } from '@/lib/invitation';
 export async function GET() {
   return handle(async () => {
     const user = await identity();
@@ -28,12 +29,18 @@ export async function GET() {
           .all()
       ).results;
     };
-    const [workspace, members, vs, fs, audit] = await Promise.all([
+    const [workspace, members, vs, fs, audit, invitation] = await Promise.all([
       db.prepare('SELECT * FROM workspaces WHERE id = ?').bind(user.workspaceId).first(),
       db.prepare('SELECT * FROM members WHERE workspaceId = ?').bind(user.workspaceId).all(),
       detail('visits'),
       detail('files'),
       detail('audit'),
+      db
+        .prepare(
+          'SELECT i.id, i.role, w.name AS workspaceName, i.createdAt FROM invitations i JOIN workspaces w ON w.id = i.workspaceId WHERE i.email = ? AND i.createdAt > ? AND i.workspaceId != ?',
+        )
+        .bind(user.email.toLowerCase(), invitationCutoff(), user.workspaceId)
+        .first(),
     ]);
     return reply({
       user,
@@ -49,6 +56,7 @@ export async function GET() {
       })),
       files: fs.map(({ objectKey, sha256, ...rest }) => rest),
       audit,
+      invitation: invitation ?? null,
       aiEnabled:
         !!env.GEMINI_API_KEY ||
         (!!env.OPENAI_API_KEY && env.OPENAI_API_KEY !== 'PASTE_YOUR_KEY_HERE'),

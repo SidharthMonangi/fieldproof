@@ -1,7 +1,6 @@
 import { env } from 'cloudflare:workers';
 import { getChatGPTUser } from '@/app/chatgpt-auth';
 import type { CaseRecord, Member } from './domain';
-import { invitationCutoff } from './invitation';
 import { authClient } from './supabase-server';
 import { allowedWriteOrigin } from './write-origin';
 export class ApiError extends Error {
@@ -46,28 +45,21 @@ export async function identity(): Promise<Member> {
   if (closure) throw new ApiError(423, 'Account deletion is in progress. Return to account deletion to retry.');
   let m = await db.prepare('SELECT * FROM members WHERE userId = ?').bind(u.userId).first<Member>();
   if (m) return m;
+  // First sign-in always gets a private workspace. Pending invitations are shown
+  // in the workspace and joined only by explicit acceptance (acceptInvitation).
   const email = u.email.toLowerCase();
-  const invite = await db
-    .prepare('SELECT * FROM invitations WHERE email = ? AND createdAt > ?')
-    .bind(email, invitationCutoff())
-    .first<{ workspaceId: string; role: string }>();
   const now = new Date().toISOString();
-  const workspaceId = invite?.workspaceId ?? crypto.randomUUID();
-  const stmts = [];
-  if (!invite)
-    stmts.push(
-      db
-        .prepare('INSERT INTO workspaces (id,name,createdAt) VALUES (?,?,?)')
-        .bind(workspaceId, 'FieldProof workspace', now),
-    );
-  stmts.push(
+  const workspaceId = crypto.randomUUID();
+  const stmts = [
+    db
+      .prepare('INSERT INTO workspaces (id,name,createdAt) VALUES (?,?,?)')
+      .bind(workspaceId, 'FieldProof workspace', now),
     db
       .prepare(
         'INSERT INTO members (userId,workspaceId,email,name,role) VALUES (?,?,?,?,?) ON CONFLICT(userId) DO NOTHING',
       )
-      .bind(u.userId, workspaceId, email, u.displayName, invite?.role ?? 'admin'),
-  );
-  if (invite) stmts.push(db.prepare('DELETE FROM invitations WHERE email = ?').bind(email));
+      .bind(u.userId, workspaceId, email, u.displayName, 'admin'),
+  ];
   try {
     await db.batch(stmts);
   } catch {

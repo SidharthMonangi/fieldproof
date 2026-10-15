@@ -12,7 +12,12 @@ let checks=0;
 function check(actual,expected){assert.equal(actual,expected);checks++;}
 const boot=await call(admin,'/api/bootstrap');check(boot.status,200);
 check((await call(admin,'/api/workspace',{action:'invite',email:officer+'@example.test',role:'officer'})).status,200);
-await call(officer,'/api/bootstrap'); await call(other,'/api/bootstrap');
+// Invitations never join automatically: the invitee starts in a private workspace and accepts.
+const pending=(await call(officer,'/api/bootstrap')).data;await call(other,'/api/bootstrap');
+check(pending.user.workspaceId!==boot.data.user.workspaceId,true);check(pending.invitation.role,'officer');
+check((await call(other,'/api/workspace',{action:'accept',id:pending.invitation.id})).status,404);
+check((await call(officer,'/api/workspace',{action:'accept',id:pending.invitation.id})).status,200);
+const joined=(await call(officer,'/api/bootstrap')).data;check(joined.user.workspaceId,boot.data.user.workspaceId);check(joined.user.role,'officer');check(joined.invitation,null);
 check((await call(officer,'/api/export')).status,403);
 check((await call(officer,'/api/health')).status,403);
 check((await fetch(base+'/api/export')).status,401);

@@ -158,8 +158,58 @@ export function WorkspacePane({
       setBusy(false);
     }
   };
+  const acceptInvitation = async (id: string) => {
+    setBusy(true);
+    try {
+      const r = await fetch('/api/workspace', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'accept', id }),
+      });
+      const d = (await r.json()) as { error?: string };
+      if (!r.ok) throw new Error(d.error);
+      // The personal workspace was removed; drop its cached copy from this device.
+      await clearScope(scopeOf(b));
+      await onRefresh();
+      toast.success('You joined the workspace.');
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+  const invitation = b.invitation;
   return (
     <>
+      {invitation && (
+        <section className="panel" aria-label="Pending invitation">
+          <h2>
+            <UserPlus size={18} />
+            Invitation to {invitation.workspaceName}
+          </h2>
+          <p className="subtle">
+            You were invited to join as {invitation.role === 'reviewer' ? 'a reviewer' : 'a field officer'}.
+            Joining removes your personal workspace and its handbook entries; it is only possible
+            while that workspace has no cases. Accept only if you know who sent it.
+          </p>
+          <div className="actions">
+            <button
+              className="primary"
+              disabled={!online || busy || hasPending}
+              onClick={() => void acceptInvitation(invitation.id)}
+            >
+              Accept and join
+            </button>
+            <button
+              className="secondary"
+              disabled={!online || busy}
+              onClick={() => void action({ action: 'decline', id: invitation.id })}
+            >
+              Decline
+            </button>
+          </div>
+        </section>
+      )}
       <div className="eyebrow">YOUR TEAM, YOUR WORKSPACE</div>
       <div className="page-heading">
         <div>
@@ -243,7 +293,8 @@ export function WorkspacePane({
               <p className="subtle">
                 Register their sign-in email and role. Give them the site link through your
                 preferred channel once site sharing is enabled. Invitations expire after seven days;
-                registering again renews them. No invitation email is sent.
+                registering again renews them. No invitation email is sent. They join only after
+                signing in and accepting the invitation in their own Workspace page.
               </p>
               <form
                 className="form-grid"
@@ -279,7 +330,7 @@ export function WorkspacePane({
                 <div className="invite-row" key={i.id}>
                   <div>
                     <strong>{i.email}</strong>
-                    <small>{i.role} · pending sign-in</small>
+                    <small>{i.role} · awaiting acceptance</small>
                   </div>
                   <button
                     className="icon-button"

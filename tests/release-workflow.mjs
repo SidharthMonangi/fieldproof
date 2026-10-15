@@ -49,6 +49,11 @@ for (const role of ['officer', 'reviewer']) {
     ).r.ok,
     role + ' invited',
   );
+  const pending = await req(role, '/api/bootstrap');
+  check(
+    (await req(role, '/api/workspace', { action: 'accept', id: pending.data.invitation?.id })).r.ok,
+    role + ' accepts the invitation',
+  );
   const x = await req(role, '/api/bootstrap');
   check(
     x.data.user.role === role && x.data.user.workspaceId === b.data.user.workspaceId,
